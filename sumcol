@@ -1,0 +1,5 @@
+#!/bin/sh
+# script takes the column number as an argument (defaults to colum 5)
+# and outputs the sum of the numbers in that column
+if [ $# -lt 1 ] ; then set 5; fi
+awk '{s += $'$1'} END {print s}'

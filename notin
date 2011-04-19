@@ -1,0 +1,39 @@
+#!/opt/local/bin/perl
+### Author: Michael Grubb
+### File:   /Users/mgrubb/bin/notin.pl
+### Description: notin.pl -- Show lines from file 2 not in file 1
+### Copyright: (C) 2010, Michael Grubb
+### Modeline: vim:tw=79:sw=4:ts=4:ai:
+### Description: Finds lines in file 2 that are not in file 1
+
+use strict; use warnings;
+
+if ( @ARGV != 2 )
+{
+	die "Usage: notin <file1> <file2>\n";
+}
+
+open(F1, "< $ARGV[0]") || die "Could not open $ARGV[0]: $!\n";
+open(F2, "< $ARGV[1]") || die "Could not open $ARGV[1]: $!\n";
+
+while(<F2>)
+{
+	chomp;
+	my $l2 = $_;
+	my $found = undef;
+
+	while(<F1>)
+	{
+		chomp;
+		my $l1 = $_;
+		if ( $l1 eq $l2 )
+		{
+			$found = 1;
+		    last;
+		}
+	}
+
+	print "$l2\n" unless $found;
+	seek(F1, 0, 0);
+	$found = undef;
+}

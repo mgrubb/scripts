@@ -1,0 +1,42 @@
+#!/bin/sh
+# This script is used to install a vim bundle (for use with pathogen) from git.
+
+giturl="$1"
+base="$2"
+
+if [ "x$1" = "x" ]
+then
+	echo "Usage: $0 git-url [base]" >&2
+	exit 1
+fi
+
+BUNDLE_DIR="$HOME/.dotfiles/vim/bundle"
+
+# source ~/.vimbundlerc for configuration overrides
+[ -e "$HOME/.vimbundlerc" ] && . $HOME/.vimbundlerc
+
+if [ ! -d "$BUNDLE_DIR" ]
+then
+	echo "Bundle directory not found: $BUNDLE_DIR" >&2
+	exit 1
+fi
+
+BUNDLE_NAME="$base"
+if [ "x$BUNDLE_NAME" = "x" ]
+then
+	BUNDLE_NAME=`echo $giturl | sed -e 's,^.*/\(.*\).git$,\1,' -e 's/[-_.]*vim[-_]*//g'`
+fi
+
+cd ${BUNDLE_DIR}
+# See if this bundle dir is under revision controlgit://github.com/chrismetcalf/vim-yankring.git
+ingit=`git rev-parse --is-inside-work-tree 2>/dev/null`
+if [ "x$ingit" = "xtrue" ]
+then
+	TOPLEVEL="`git rev-parse --show-toplevel`"
+	RELBUNDLEDIR="${BUNDLE_DIR#${TOPLEVEL}/}"
+	cd "$TOPLEVEL"
+	git submodule add "$giturl" "${RELBUNDLEDIR}/${BUNDLE_NAME}"
+else
+	git clone "$giturl" "$BUNDLE_NAME"
+fi
+

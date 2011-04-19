@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Dumps a list of the UTI descriptors on Mac OS X
+
+if [ -x /usr/bin/lsregister ] ; then
+	LSREGISTER=/usr/bin/lsregister
+else
+	LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
+fi
+
+$LSREGISTER -dump | grep '[[:space:]]uti:' | awk '{print $2}' | sort | uniq

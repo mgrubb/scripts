@@ -1,0 +1,65 @@
+#!/bin/ksh
+
+### Description: lsc2ls_c -- transform LSCOLORS to LS_COLORS
+### Author: Michael Grubb
+### Modeline: vi:set ai ts=4 sw=4 ft=sh:
+### Usage: eval `lsc2ls_c`
+
+_colors="$LSCOLORS"
+
+ls_color_names=("di" "ln" "so" "pi" "ex" "bd" "cd" "su" "sg" "tw" "ow")
+lscolor_chars=(
+	[a]='30'
+	[b]='31'
+	[c]='32'
+	[d]='33'
+	[e]='34'
+	[f]='35'
+	[g]='36'
+	[h]='37'
+	[x]='00'
+)
+
+makebold () {
+	if echo $1 | grep -q '[A-Z]'
+	then
+		echo "01;$2"
+	else
+		echo "$2"
+	fi
+}
+
+bgcolor () {
+	c=`echo $1 | tr 'A-Z' 'a-z'`
+	cc="${lscolor_chars[$c]}"
+	if [ "$cc" != "00" -a -n "$cc" ]
+	then
+		let 'cc = cc + 10'
+	fi
+
+	makebold $1 $cc
+}
+
+fgcolor () {
+	c=`echo $1 | tr 'A-Z' 'a-z'`
+	cc="${lscolor_chars[$c]}"
+	makebold $1 $cc
+}
+
+ls_colors=
+for (( fld = 0 ; fld < 11 ; fld = fld + 1 ))
+do
+	color=`echo $_colors | cut -c 1,2`
+	_colors=`echo $_colors | sed -e 's/^..//'`
+	fg=$(fgcolor $(echo $color | cut -c 1))
+	bg=$(bgcolor $(echo $color | cut -c 2))
+
+	if [ $fld -eq 0 ]
+	then
+		ls_colors="${ls_color_names[$fld]}=$fg;$bg"
+	else
+		ls_colors="${ls_colors}:${ls_color_names[$fld]}=$fg;$bg"
+	fi
+done
+echo "LS_COLORS=\"$ls_colors\"; export LS_COLORS"
+

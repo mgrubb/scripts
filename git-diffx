@@ -1,0 +1,8 @@
+#!/bin/ksh
+# Use gitx as a diff viewer
+result=$(git diff "$@")
+
+if [ "$result" ]
+then
+	echo "$result" | gitx
+fi

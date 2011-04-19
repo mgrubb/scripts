@@ -1,0 +1,53 @@
+#!/bin/sh
+# This script will output various doctype specifiers.
+
+XHTML_10_STRICT='<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+\n\t"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'
+
+XHTML_10_TRANS='<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+\n\t"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'
+
+XHTML_10_FRAMES='<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN"
+\n\t"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">'
+
+XHTML_11='<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+\n\t"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">'
+
+HTML_401_FRAMES='<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Frameset//EN"
+\n\t"http://www.w3.org/TR/html4/frameset.dtd">'
+
+HTML_401_TRANS='<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+\n\t"http://www.w3.org/TR/html4/loose.dtd">'
+
+HTML_401_STRICT='<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+\n\t"http://www.w3.org/TR/html4/strict.dtd">'
+
+CMD=`basename $0`
+if [ $# -lt 1 ] ; then
+	cat <<EOF
+Usage: $CMD <doctype>
+	Where doctype is one of:
+	xhtml-1.0-strict	XHTML 1.0 Strict Standard
+	xhtml-1.0-trans		XHTML 1.0 Transitional Standard
+	xhmtl-1.0-frames	XHTML 1.0 Frames Standard
+	xhtml-1.1		XHTML 1.1 Standard
+	html-4.01-frames	HTML 4.01 Frames Standard
+	html-4.01-trans		HTML 4.01 Transitional Standard
+	html-4.01-strict	HTML 4.01 Strict Standard
+EOF
+exit
+fi
+
+doctype=""
+case $1 in
+	xhtml-1.0-strict|xhtml-1.0-trans|xhmtl-1.0-frames|xhtml-1.1|html-4.01-frames|html-4.01-trans|html-4.01-strict)
+		doctype=`echo $1 | tr -d '.' | tr '-' '_' | tr 'a-z' 'A-Z'`
+		;;
+esac
+
+if [ "x$doctype" = "x" ] ; then
+	echo "Unsupported document type"
+	exit
+fi
+
+eval echo -e \$$doctype

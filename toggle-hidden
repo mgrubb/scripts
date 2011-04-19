@@ -1,0 +1,20 @@
+#!/bin/ksh
+# toggles whether finder shows all files or not
+# vim: set ts=4 sw=4 ai ft=sh:
+
+SETTING=`defaults read com.apple.finder AppleShowAllFiles`
+
+case $SETTING in
+	FALSE)
+		SETTING=TRUE
+		;;
+	TRUE)
+		SETTING=FALSE
+		;;
+	*)
+		SETTING=FALSE
+		;;
+esac
+
+defaults write com.apple.finder AppleShowAllFiles $SETTING && \
+	killall -HUP Finder

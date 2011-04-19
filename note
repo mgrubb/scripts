@@ -1,0 +1,167 @@
+#!/bin/sh
+
+### Description: note -- Create a new note in $NOTESDIR
+### Author: Michael Grbb
+### Modeline: vi:set ai ts=4 sw=4 ft=sh:
+
+PROG=`basename $0`
+USAGE="
+Usage:  $PROG [-m message] [-l] [-p] [-s] [notename|tag...]
+
+	Open a new note in an editor.
+	-l		List notes
+	-p		Display the note 'notename'
+	-s		Search for notes containing any of the tags listed
+			Tags are specified in note files by starting a line
+			with '#->TAGS:'
+	-m message	Write message as the contents of the new note and
+			do not open in an editor
+	notename	if no options are given and the note 'notename'
+			does not exist, create it and open it in an editor.
+			If the note does exist, it will be opened in an editor.
+
+
+"
+SYNTAX="$PROG: Error: option syntax error"
+
+if [ -z "$NOTESDIR" -o ! -d "$NOTESDIR/." ]
+then
+	if [ -d "$HOME/.notes/." ]
+	then
+		NOTESDIR="$HOME/.notes"
+		echo "$PROG: Warning: NOTESDIR not set, using $HOME/.notes." >&2
+	elif [ -d "$HOME/notes/." ]
+	then
+		NOTESDIR="$HOME/notes"
+		echo "$PROG: Warning: NOTESDIR not set, using $HOME/notes." >&2
+	else
+		echo "$PROG: Error: NOTESDIR not set" >&2
+		exit 2
+	fi
+fi
+
+ED=
+{ [ -n "$VISUAL" ] && ED="$VISUAL"; } || \
+{ [ -n "$EDITOR" ] && ED="$EDITOR"; } || \
+{ [ -e /usr/bin/vi ] && ED=/usr/bin/vi; } || \
+{ [ -e /bin/vi ] && ED=/bin/vi; } || \
+{ [ -e /bin/ed ] && ED=/bin/ed; } || \
+{ EDWARN="$PROG: Warning: Could not locate an editor."; }
+
+opt_l=; opt_p= 
+opt_m=; message=
+notename=
+badarg=
+
+while [ $# -gt 0 ]
+do
+	ARG="$1"
+	case "$ARG" in
+		-l)	opt_l=-l; break;;
+		-p)	shift; opt_p=-p; break;;
+		-m)	shift; opt_m=-m; message="$1";;
+		# TODO: implement search function
+		-s)	opt_s=-s; echo "$PROG: Not yet implemented";;
+		-?)	badarg="$ARG"; break;;
+		--)	shift; break;;	
+		*) break;;
+	esac
+	shift
+done
+
+if [ "$#" -le 0 -a -z "$opt_l" ]
+then
+	echo "$USAGE" >&2
+	exit 1
+else
+	notename="$1"
+fi
+
+if [ -n "$opt_l" ]
+then
+	echo "Notes:"
+	for f in ${NOTESDIR}/*.txt
+	do
+		echo `basename "$f" .txt`
+	done
+	exit 0
+fi
+
+
+if [ -n "$badarg" ]
+then
+	echo "$SYNTAX: Unknown argument $badarg" >&2
+	echo "$USAGE" >&2
+	exit 1
+fi
+
+if [ -n "$opt_p" ]
+then
+	if [ -z "$notename" ]
+	then
+		echo "$SYNTAX: Missing notename" >&2
+		echo "$USAGE" >&2
+		exit 1
+	fi
+
+	if [ -f "$NOTESDIR/${notename}.txt" ]
+	then
+		cat "$NOTESDIR/${notename}.txt"
+		exit 0
+	else
+		echo "$PROG: Error: No note named '$notename' exists" >&2
+		exit 2
+	fi
+fi
+
+if [ -n "$opt_m" ]
+then
+	if [ -z "$message" ]
+	then
+		echo "$SYNTAX: Missing message parameter to -m" >&2
+		echo "$USAGE" >&2
+		exit 1
+	fi
+
+	if [ -z "$notename" ]
+	then
+		echo "$SYNTAX: Missing notename" >&2
+		echo "$USAGE" >&2
+		exit 1
+	fi
+
+	if [ -f "$NOTESDIR/${notename}.txt" ]
+	then
+		echo "$PROG: Error: Note '$notename' already exists, use $PROG $notename instead."
+		exit 2
+	fi
+
+	echo "$message" > "$NOTESDIR/${notename}.txt"
+	exit 0
+fi
+
+if [ -z "$notename" ]
+then
+	echo "$SYNTAX: Missing notename" >&2
+	echo "$USAGE" >&2
+	exit 1
+elif [ -f "$NOTESDIR/${notename}.txt" ]
+then
+	if [ -n "$EDWARN" ]
+	then
+		echo "$EDWARN" >&2
+		exit 1
+	else
+		$ED "$NOTESDIR/${notename}.txt"
+	fi
+	exit 0
+else
+	touch "$NOTESDIR/${notename}.txt"
+	if [ -n "$EDWARN" ]
+	then
+		echo "$EDWARN" >&2
+		exit 1
+	fi
+	$ED "$NOTESDIR/${notename}.txt"
+	exit 0
+fi

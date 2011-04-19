@@ -1,0 +1,68 @@
+#!/bin/ksh
+# Wrapper around the ssh binary to add the host name to the terminal window background
+
+if [ "$(tty)" == 'not a tty' ] || [ "$TERM_PROGRAM" != "iTerm.app" ]
+then
+	exec /usr/bin/ssh "$@"
+fi
+
+function __calculate_iterm_window_dimensions {
+	typeset size=($(osascript -e "tell application \"iTerm\"
+		get bounds of window 1
+	end tell" | tr ',' ' '))
+
+	typeset x1=${size[0]} y1=${size[1]} x2=${size[2]} y2=${size[3]}
+	typeset w=$(( $x2 - $x1 - 15))
+	typeset h=$(( $y2 - $y1 - 44))
+	echo "${w}x${h}"
+}
+
+DIMENSIONS=$(__calculate_iterm_window_dimensions)
+
+BG_COLOR="#222222"
+FG_COLOR="#662020"
+GRAVITY="NorthEast"
+
+OFFSET1="20,10"
+OFFSET2="20,80"
+FONT_SIZE="60"
+FONT_STYLE="Normal"
+FONT="$HOME/.ksh/resources/SimpleLife.ttf"
+HOSTNAME=`echo $@ | sed -e "s/.*@//" -e 's/-.* //' -e "s/ .*//"`
+
+function set_bg {
+	typeset tty=$(tty)
+	osascript -e "
+	tell application \"iTerm\"
+		repeat with theTerminal in terminals
+			tell theTerminal
+				try
+					tell session id \"$tty\"
+						set background image path to \"$1\"
+					end tell
+				on error errmesg number errn
+				end try
+			end tell
+		end repeat
+	end tell"
+}
+
+on_exit () {
+		if [ ! -f /tmp/iTermBG.empty.png ]
+		then
+				convert -size "$DIMENSIONS" xc:"$BG_COLOR" "/tmp/iTermBG.empty.png"
+		fi
+		set_bg
+#		set_bg "/tmp/iTermBG.empty.png"
+		rm "/tmp/iTermBG.$$.png"
+}
+
+trap on_exit EXIT
+
+convert \
+		-size "$DIMENSIONS" xc:"$BG_COLOR" -gravity "$GRAVITY" -fill "$FG_COLOR" \
+		-font "$FONT" -style "$FONT_STYLE" -pointsize "$FONT_SIZE" -antialias \
+		-draw "text $OFFSET1 '${HOSTNAME}'" \
+		"/tmp/iTermBG.$$.png"
+set_bg "/tmp/iTermBG.$$.png"
+/usr/bin/ssh "$@"

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Exec an xterm with random colors. There should be a $HOME/.colors
+# file full of xterm command-line color options.  A blank line will
+# get the default colors.
+
+S='-class UXTerm -g 90x36'
+O='-cm -bdc -ulc -dc +pc -sb'
+if [ ! -f $HOME/.colors ];then
+	echo "Can't find $HOME/.colors file."
+	c=`-bg black -fg yellow`
+else
+	m=`date +%H%M%S`
+	n=`wc -l<$HOME/.colors`
+	l=`expr \( $m '+' $$ \) % $n + 1`
+	c=`head <$HOME/.colors -$l |tail -1`
+fi
+xterm -name xrand $S $O $c $* &
+echo `date` xterm -name xrand $S $O $c "$*" >>$HOME/.xlog
+exit 0

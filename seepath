@@ -1,0 +1,301 @@
+#!/bin/sh
+
+# seepath - see status of each component of a path
+# http://www.cs.duke.edu/~des/scripts.html
+# http://www.cs.indiana.edu/~kinzler/home.html#other
+
+#  @(#)	~des/src/seepath/seepath	1.8	98/05/01	01:59:16
+#
+#  seepath: long list each component of a path
+#
+# Copyright (c) 1997 by Daniel E. Singer.  All rights reserved.
+# Permission is granted to reproduce and distribute this program
+# with the following conditions:
+#   1) This copyright notice and the author identification below
+#      must be left intact in the program and in any copies.
+#   2) Any modifications to the program must be clearly identified
+#      in the source file.
+#
+# Written by Daniel E. Singer, Duke Univ. Dept. of Computer Science, 1/96
+#
+# Modifications:
+#
+# 2/97, D.Singer
+#	added '-L';
+#	lots rewritten;
+#
+# 2/97, D.Singer
+#	added '-f';
+#
+# 12/97, D.Singer
+#	more flexible 'ls' testing;
+#	new option parsing;
+#	changed '-L' to '-F';
+#	various cleaning up and commenting;
+#
+# 12/97, D.Singer
+#	added '-h';
+#
+# 5/98, D.Singer
+#	a few little fixes, including some for HP-UX Posix shell;
+#
+
+PATH='/bin:/usr/bin:/sbin:/usr/sbin'
+export PATH
+
+PROG=`basename $0`
+USAGE="
+Usage:  $PROG [-f|-F] [-h] [path]
+
+		-f	follow links that occur as the final component
+			of the path only;
+		-F	list out links in gory detail, ie, follow links
+			that occur anywhere in the path; overrides -f;
+		-h	print help message and exit;
+		path	the file or path to analyze; default is current
+			directory;
+"
+SYNTAX="$PROG: option syntax error."
+
+CPATH=		# used in follow_path() to hold the full path
+COMPONENT=	# used in follow_path() to hold each path component
+
+FOLLOW_LINKS=0		# -f flag
+REALLY_FOLLOW_LINKS=0	# -F flag
+
+#
+# figure out which form of 'ls' to use, we want the user and group to show;
+# longer one wins;
+#
+LS_LD_LEN=`expr "\`ls -ld .\`" : '.*'`
+LS_LDG_LEN=`expr "\`ls -ldg .\`" : '.*'`
+if [ "$LS_LD_LEN" -gt "$LS_LDG_LEN" ]; then
+ 	LL="ls -ld"
+ 	LLF="ls -ldF"
+  else
+ 	LL="ls -ldg"
+ 	LLF="ls -ldFg"
+  fi
+#echo "LL=$LL"
+#echo "LLF=$LLF"
+
+#
+# process command line options
+#
+
+# print messages and exit
+syntax_error() {
+	echo "$USAGE" >&2
+	echo "$SYNTAX" >&2
+	exit 1
+}
+
+# check that an option has an argument
+arg_syntax_check() {
+	[ "$1" -lt 2 ] && syntax_error
+}
+
+while [ "$#" -gt 0 ]; do
+	OPT="$1"
+	case "$OPT" in
+	  # options without arguments
+	  -f)
+		FOLLOW_LINKS=1
+		;;
+	  -F)
+		REALLY_FOLLOW_LINKS=1
+		;;
+	  -h)
+		echo "$USAGE"
+		exit 0
+		;;
+	#  # options with arguments
+	#  -c)
+	#	CFLAG=1
+	#	arg_syntax_check "$#"
+	#	CARG="$2"
+	#	shift
+	#	;;
+	  --)
+		shift
+		break
+		;;
+	  # unknown option
+	  -?)
+		syntax_error
+		;;
+	  # compound option
+	  -??*)
+		# break up a compound option
+		NEW_OPTS=`nawk 'BEGIN {
+			OPT_STR = "'"$OPT"'";
+			LEN = length(OPT_STR);
+			NEW_OPTS = "";
+			STATUS = 0;
+			for (POS=2; POS+0 <= LEN; ++POS) {
+				OPT = substr(OPT_STR,POS,1);
+				if (OPT !~ /[a-zA-Z0-9_]/)
+					STATUS = 1;
+				NEW_OPTS = NEW_OPTS " -" OPT;
+			}
+			print NEW_OPTS;
+			exit STATUS;
+		  }' <&-` || {
+			syntax_error
+		  }
+		shift
+		set -- $NEW_OPTS ${1:+"$@"}
+		continue
+		;;
+	  # end of options, just arguments left
+	  *)
+		break
+	  esac
+	shift
+  done
+
+#
+# REALLY_FOLLOW_LINKS overrides FOLLOW_LINKS, and in fact they
+# will interfere with each other if both are set;
+#
+[ "$FOLLOW_LINKS$REALLY_FOLLOW_LINKS" = 11 ] && FOLLOW_LINKS=0
+
+
+#
+# get the object that the symbolic link is pointing to
+#
+get_symlink() {
+	$LL "$1" | sed 's/.* -> //'
+}
+
+
+#
+# follow and list each component of a path, possibly recursively;
+#
+follow_path() {
+	CPATH="$1"
+
+	#
+	# break up the path into its components
+	# by setting them into positional parameters
+	#
+	IFS_HOLD="$IFS"	# input field separater
+	IFS='/'		# input field separater
+	set -- X $CPATH	# put path components into the positional parameters
+	shift
+	IFS="$IFS_HOLD"
+
+	#
+	# special case of path beginning with '/';
+	# this will be skipped when following relative symbolic links;
+	#
+	case "$CPATH" in
+	  /*)
+		$LL /
+		cd /
+	  esac
+
+	#
+	# analyze each path component;
+	#
+	for COMPONENT do
+
+		#
+		# this stanza is added for compatibility by the Posix
+		# conformant shell as found on HP-UX 10.20, as pointed out
+		# by Bruce Foster of Northwestern University;
+		# Bourne shell discards implicit null parameters in the
+		# "set" above, the Posix shell does not;
+		#
+		[ -z "$COMPONENT" ] && {
+			shift
+			continue
+		}
+
+		#
+		# list this component
+		#
+		$LLF "$COMPONENT"
+
+		if [ "$REALLY_FOLLOW_LINKS" = 1 -a -h "$COMPONENT" ]; then
+			#
+			# follow the symbolic link
+			#
+
+			#
+			# get the link, and append on the rest of the path
+			# we're following;
+			#
+			COMPONENT=`get_symlink "$COMPONENT"`
+			shift
+			for C do
+				[ -z "$C" ] && {
+					shift
+					continue
+				}
+				COMPONENT="$COMPONENT/$C"
+			  done
+
+			#
+			# recursively follow the link
+			#
+			follow_path "$COMPONENT"
+			break
+		  fi
+
+		shift
+		[ "$#" = 0 ] && break
+		cd "$COMPONENT"
+	  done
+
+	if [ "$FOLLOW_LINKS" = 1 ]; then
+
+		#
+		# in this case, we're only following the link if it's
+		# the last component in the path;
+		#
+
+		if [ -h "$COMPONENT" ]; then
+			follow_path "`get_symlink \"$COMPONENT\"`"
+		  fi
+	  fi
+}
+
+
+set -f		# turn off filename generation
+
+#
+# adjust the starting point
+#
+case "$#" in
+  0)
+	# no arguments means current directory
+	INIT_PATH=`pwd`
+	;;
+  1)
+	# the path to analyze
+	INIT_PATH="$1"
+	case "$INIT_PATH" in
+	  /*)
+		;;
+	  *)
+		INIT_PATH="`pwd`/$1"
+	  esac
+	;;
+  *)
+	# Oops!
+	echo "$PROG: too many arguments." >&2
+	echo "$USAGE" >&2
+	exit 1
+  esac
+
+
+##
+## do it...
+##
+
+echo "$PROG: $INIT_PATH"
+
+follow_path "$INIT_PATH"
+
+exit

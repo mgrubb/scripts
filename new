@@ -1,0 +1,130 @@
+#!/bin/ksh
+
+PROG=`basename $0`
+
+: ${NEW_DIR:="$HOME/.new"}
+
+USAGE="
+Usage: $PROG [ -h ] [ -l ] [ -o output ] [ -t newtemp ] [ template ]
+
+	Create new files based off of a common template
+
+	-h		This help message
+	-l		List available templates
+	-t newtemp	Create a new template named newtemp
+	-o output	Output new file template to file output
+			instead of stdout
+"
+
+if [ ! -d $NEW_DIR/. ]
+then
+	echo "$PROG: Error: could not find new files " \
+	"directory ~/.new or NEW_DIR" >&2
+	exit 1
+fi
+
+output=
+LIST_OPT=0
+NEWTEMP_OPT=0
+TEMP_OPT=0
+OUT_OPT=0
+SYNTAX="$PROG: option syntax error."
+
+if [ "$#" = 0 ]
+then
+	echo "$USAGE" >&2
+	exit 1
+fi
+
+while [ "$#" -gt 0 ]
+do
+	OPT="$1"
+	case "$OPT" in
+		-h)	echo "$USAGE" >&2
+				exit 1
+				;;
+		-l)	LIST_OPT=1
+			;;
+		-t)	NEWTEMP_OPT=1
+			newtemp="$2"
+			[ -z "$newtemp" ] && { echo "$SYNTAX" ;echo "$USAGE" ;exit 1 ;} >&2
+			shift
+			;;
+		-o)	OUT_OPT=1
+			output="$2"
+			[ -z "$output" ] && { echo "$SYNTAX" ;echo "$USAGE"  ;exit 1 ;} >&2
+			shift
+			;;
+		# unknown option
+		-?)	echo "$SYNTAX" >&2
+			echo "$USAGE" >&2
+			exit 1
+			;;
+		*)	break
+			;;
+	esac
+	shift
+done
+
+if [ "$#" != 0 ]
+then
+	template="$1"
+	TEMP_OPT=1
+	shift
+	if [ "$#" -gt 0 ]
+	then
+		echo "$SYNTAX" >&2
+		echo "$USAGE" >&2
+		exit 1
+	fi
+fi
+
+if [ "$LIST_OPT" = 1 ]
+then
+	echo "Templates:"
+	for t in `find $NEW_DIR -type f ! -name '.*' -print`
+	do
+		echo "	`basename $t`"
+	done
+	exit 0
+fi
+
+
+if [ "$NEWTEMP_OPT" = 1 ]
+then
+	if [ -f $NEW_DIR/$newtemp ]
+	then
+		echo "$PROG: Error: Template $newtemp already exists." >&2
+		exit 1
+	fi
+	touch $NEW_DIR/$newtemp
+	ED=
+	{ [ -n "$VISUAL" ] && ED="$VISUAL" ;} || \
+	{ [ -n "$EDITOR" ] && ED="$EDITOR" ;} || \
+	{ [ -e /usr/bin/vi ] && ED=/usr/bin/vi ;} || \
+	{ [ -e /bin/vi ] && ED=/bin/vi ;} || \
+	{ [ -e /bin/ed ] && ED=/bin/ed ;} || \
+	{ echo "$PROG: Could not located an editor. " \
+			"New template created at $NEW_DIR/${newtemp}." >&2 ;exit 1 ;}
+
+	$ED $NEW_DIR/$newtemp
+	exit 0
+fi
+
+if [ "$TEMP_OPT" = 1 ]
+then
+	if [ ! -f "$NEW_DIR/$template" ] 
+	then
+		echo "$PROG: Error: Template could not be found ($template)." >&2
+		exit 1
+	fi
+
+
+	if [ "$OUT_OPT" = 1 ]
+	then
+		eval "exec 1>$output"
+	fi
+	cat $NEW_DIR/$template
+	exit 0
+fi
+

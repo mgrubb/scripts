@@ -1,0 +1,21 @@
+#!/bin/ksh
+# Script to one day add a url to the Mac OS X dock, doesn't work right now
+
+name=$1
+url=$2
+if [ -z "$url" ]
+then
+	url="$name"
+fi
+defaults write com.apple.dock persistent-others \
+	-array-add "{
+		\"tile-type\"=\"url-tile\";
+		\"tile-data\"={
+			\"label\"=\"$name\";
+			\"url\"={
+				\"_CFURLString\"=\"$url\";
+				\"_CFURLStringType\"=15;
+			};
+		};
+	}"
+killall Dock

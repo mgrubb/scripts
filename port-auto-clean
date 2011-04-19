@@ -1,0 +1,19 @@
+#!/bin/ksh
+# This script will remove inactive ports installed by MacPorts
+
+if [ "x$1" = "x-f" ]
+then
+	force=y
+fi
+
+echo "These ports are inactive and will be uninstalled:"
+sudo port installed | grep -v active | tail -n +2 | sed -e 's/ *//g'
+
+if [ "x$force" = "xy" ]
+then
+	sudo port installed | grep -v active | tail -n +2 | sed -e 's/ *//g' | sudo xargs port uninstall
+else
+	echo >&2
+	echo >&2 "To actually remove these ports re-run with the -f flag"
+fi
+
