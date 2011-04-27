@@ -1,4 +1,6 @@
 #!/usr/bin/awk -f
+# This script will make the sialog file on Tru64/OSF-1 platforms easier to read
+# The entries in the sialog are split across two lines, this script simply joins the lines together.
 
 BEGIN {
 	rcnt = 0
