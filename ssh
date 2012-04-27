@@ -1,6 +1,6 @@
 #!/bin/ksh
 # Wrapper around the ssh binary to add the host name to the terminal window background
-
+PATH="/opt/local/bin:$PATH"
 if [ "$(tty)" == 'not a tty' ] || [ "$TERM_PROGRAM" != "iTerm.app" ]
 then
 	exec /usr/bin/ssh "$@"
