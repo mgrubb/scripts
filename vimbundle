@@ -6,11 +6,17 @@ base="$2"
 
 if [ "x$1" = "x" ]
 then
-	echo "Usage: $0 git-url [base]" >&2
+	echo "Usage: $0 -u|git-url [base]" >&2
+  echo "  -u updates the bundles to the latest commit on github"
 	exit 1
 fi
 
 BUNDLE_DIR="$HOME/.dotfiles/vim/bundle"
+
+case "$1" in
+  -u) MODE="update" ;;
+   *) MODE="install" ;;
+esac
 
 # source ~/.vimbundlerc for configuration overrides
 [ -e "$HOME/.vimbundlerc" ] && . $HOME/.vimbundlerc
@@ -21,22 +27,68 @@ then
 	exit 1
 fi
 
-BUNDLE_NAME="$base"
-if [ "x$BUNDLE_NAME" = "x" ]
+function ingit {
+  [ "x$(git rev-parse --is-inside-work-tree 2>/dev/null)" = "xtrue" ]
+}
+
+if [ "x$MODE" = "xinstall" ]
 then
-	BUNDLE_NAME=`echo $giturl | sed -e 's,^.*/\(.*\).git$,\1,' -e 's/[-_.]*vim[-_]*//g'`
+  BUNDLE_NAME="$base"
+  if [ "x$BUNDLE_NAME" = "x" ]
+  then
+    BUNDLE_NAME=$(echo $giturl | sed -e 's,^.*/\(.*\).git$,\1,' -e 's/[-_.]*vim[-_]*//g')
+  fi
+
+  cd "${BUNDLE_DIR}"
+  # See if this bundle dir is under revision control
+  ingit=$(git rev-parse --is-inside-work-tree 2>/dev/null)
+  if ingit
+  then
+    TOPLEVEL="$(git rev-parse --show-toplevel)"
+    RELBUNDLEDIR="${BUNDLE_DIR#${TOPLEVEL}/}"
+    cd "${TOPLEVEL}"
+    if [ "x$MODE" = "xinstall" ]
+    then
+      git submodule add "$giturl" "${RELBUNDLEDIR}/${BUNDLE_NAME}"
+    fi
+  else
+    if [ "x$MODE" = "xinstall" ]
+    then
+      git clone "$giturl" "$BUNDLE_NAME"
+    fi
+  fi
 fi
 
-cd ${BUNDLE_DIR}
-# See if this bundle dir is under revision controlgit://github.com/chrismetcalf/vim-yankring.git
-ingit=`git rev-parse --is-inside-work-tree 2>/dev/null`
-if [ "x$ingit" = "xtrue" ]
+if [ "x$MODE" = "xupdate" ]
 then
-	TOPLEVEL="`git rev-parse --show-toplevel`"
-	RELBUNDLEDIR="${BUNDLE_DIR#${TOPLEVEL}/}"
-	cd "$TOPLEVEL"
-	git submodule add "$giturl" "${RELBUNDLEDIR}/${BUNDLE_NAME}"
-else
-	git clone "$giturl" "$BUNDLE_NAME"
+  cd "${BUNDLE_DIR}"
+  if ingit
+  then
+    TOPLEVEL="$(git rev-parse --show-toplevel)"
+    cd "${TOPLEVEL}"
+    BUNDLE_LIST="$(git submodule foreach --quiet pwd)"
+  else
+    BUNDLE_LIST="$(find $(pwd) -name '.git' | sed -e 's,/\.git$,,')"
+  fi
+  oldIFS="$IFS"
+  IFS="
+  "
+  for bundle in $BUNDLE_LIST
+  do
+    cd "$bundle"
+    echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+    echo "Updating $(basename "$bundle")"
+    remote_url="$(git config -l | grep 'remote\.origin\.url' | sed -e 's/^.*=//')"
+    if echo "$remote_url" | grep -q "github"
+    then
+      repo_name="$(echo $remote_url | sed -e 's,^.*/\(.*/.*\)\.git$,\1,')"
+      master_branch="$(curl -i https://api.github.com/repos/$repo_name 2>/dev/null | \
+        grep 'master_branch' | sed -e 's/^.*: \(.*\)$/\1/' -e 's/"//g' -e 's/,$//')"
+    fi
+    : ${master_branch:="master"}
+    # Checkout the $master_branch, update from the origin, then put us back into a detached HEAD state
+    git checkout $master_branch
+    git pull origin $master_branch
+    git checkout -q --detach $master_branch
+  done
 fi
-
