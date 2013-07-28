@@ -3,5 +3,5 @@
 MODE="SNCL"
 [ "$1" = "-nospecial" ] && MODE="NCL"
 
-exec /usr/local/bin/apg -n 8 -x 8 -l -M $MODE -t \
+exec /usr/local/bin/apg -n 8 -m 8 -x 8 -l -M $MODE -t \
 	-E \[\]\(\)!@\#%^\*\<\>\?\/,.\`\~\{\}\;\"\'-_=+\:\\\|\&
