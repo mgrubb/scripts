@@ -20,15 +20,31 @@ function __calculate_iterm_window_dimensions {
 DIMENSIONS=$(__calculate_iterm_window_dimensions)
 
 BG_COLOR="#222222"
-FG_COLOR="#662020"
+#FG_COLOR="#662020"
+#FG_COLOR="#9B0000"
+FG_COLOR="#FFB507"
+#FG_COLOR="#9D06E2"
 GRAVITY="NorthEast"
 
 OFFSET1="20,10"
 OFFSET2="20,80"
 FONT_SIZE="60"
 FONT_STYLE="Normal"
-FONT="$HOME/.ksh/resources/SimpleLife.ttf"
-HOSTNAME=`echo $@ | sed -e "s/.*@//" -e 's/-.* //' -e "s/ .*//"`
+#FONT="$HOME/.ksh/resources/SimpleLife.ttf"
+#FONT="$HOME/Library/Fonts/Starjhol.TTF"
+#FONT="$HOME/Library/Fonts/Starjout.TTF"
+FONT="$HOME/Library/Fonts/Starjedi.ttf"
+HOSTNAME=$(echo $@ | sed -e "s/.*@//" -e 's/-.* //' -e "s/ .*//")
+: ${SSH_HOSTNAME:=$HOSTNAME}
+LOOKUP_TAB="${HOME}/.ssh/host-lookup"
+if [ -f "$LOOKUP_TAB" ]
+then
+  hst=$(grep "^${HOSTNAME}" "$LOOKUP_TAB")
+  if [ -n "$hst" ]
+  then
+    HOSTNAME=$(echo $hst | awk '{print $2}')
+  fi
+fi
 
 function set_bg {
 	typeset tty=$(tty)
@@ -50,7 +66,11 @@ function set_bg {
 on_exit () {
 		if [ ! -f /tmp/iTermBG.empty.png ]
 		then
-				convert -size "$DIMENSIONS" xc:"$BG_COLOR" "/tmp/iTermBG.empty.png"
+				convert \
+          -size "$DIMENSIONS" xc:"$BG_COLOR" -gravity "$GRAVITY" -fill "$FG_COLOR" \
+          -font "$FONT" -style "$FONT_STYLE" -pointsize "$FONT_SIZE" -antialias \
+          -draw "text $OFFSET1 '$(hostname -s)'" \
+          "/tmp/iTermBG.empty.png"
 		fi
 		set_bg
 #		set_bg "/tmp/iTermBG.empty.png"
@@ -58,11 +78,10 @@ on_exit () {
 }
 
 trap on_exit EXIT
-
 convert \
 		-size "$DIMENSIONS" xc:"$BG_COLOR" -gravity "$GRAVITY" -fill "$FG_COLOR" \
 		-font "$FONT" -style "$FONT_STYLE" -pointsize "$FONT_SIZE" -antialias \
-		-draw "text $OFFSET1 '${HOSTNAME}'" \
+		-draw "text $OFFSET1 '${SSH_HOSTNAME}'" \
 		"/tmp/iTermBG.$$.png"
 set_bg "/tmp/iTermBG.$$.png"
 /usr/bin/ssh "$@"
