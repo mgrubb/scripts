@@ -1,21 +1,34 @@
 #!/bin/sh
 # This script is used to install a vim bundle (for use with pathogen) from git.
 
-giturl="$1"
-base="$2"
-
 if [ "x$1" = "x" ]
 then
-	echo "Usage: $0 -u|git-url [base]" >&2
+	echo "Usage: $0 -u|-r|repo [base]" >&2
   echo "  -u updates the bundles to the latest commit on github"
+  echo "  -r removes the bundle"
 	exit 1
+fi
+
+if [ -z "$(which jshon)" -o ! -x "$(which jshon)" ]
+then
+  echo "Could not locate the jshon command" >&2
+  exit 1
+else
+  JSHON="$(which jshon)"
 fi
 
 BUNDLE_DIR="$HOME/.dotfiles/vim/bundle"
 
 case "$1" in
-  -u) MODE="update" ;;
-   *) MODE="install" ;;
+  -u) MODE="update"
+      base="$2" ;;
+
+  -r) MODE="remove"
+      base="$2" ;;
+
+   *) MODE="install"
+      location="$2"
+      base="$3";;
 esac
 
 # source ~/.vimbundlerc for configuration overrides
@@ -31,42 +44,74 @@ function ingit {
   [ "x$(git rev-parse --is-inside-work-tree 2>/dev/null)" = "xtrue" ]
 }
 
+function find_git_repo {
+  typeset url="$1"
+  typeset giturl
+  if echo "$url" | grep -q '^https\?://'
+  then
+    giturl="$url"
+  elif [ "x$(echo $url | awk -F/ '{print NF}')" = "x2" ]
+  then
+    giturl="https://github.com/${url}.git"
+  else
+    echo "Could not determine git repo name from $url" >&2
+    exit 1
+  fi
+
+  if curl -L -s -D - -o /dev/null "$giturl" | grep -q '^Status: 200 OK'
+  then
+    echo "$giturl"
+  else
+    echo "Nothing found at the url: $giturl" >&2
+    exit 1
+  fi
+}
+
+function find_base_from_url {
+  echo "$1" | sed -e 's,^.*/\(.*\)\.git$,\1,' -e 's/[-_.]*vim[-_]*//g'
+}
+
+function setup_in_git {
+  TOPLEVEL="$(git rev-parse --show-toplevel)"
+  cd "${TOPLEVEL}"
+}
+
+
 if [ "x$MODE" = "xinstall" ]
 then
+  giturl=$(find_git_repo "$location") || exit 1
   BUNDLE_NAME="$base"
+
   if [ "x$BUNDLE_NAME" = "x" ]
   then
-    BUNDLE_NAME=$(echo $giturl | sed -e 's,^.*/\(.*\).git$,\1,' -e 's/[-_.]*vim[-_]*//g')
+    BUNDLE_NAME=$(base_from_url "$giturl")
   fi
 
   cd "${BUNDLE_DIR}"
   # See if this bundle dir is under revision control
-  ingit=$(git rev-parse --is-inside-work-tree 2>/dev/null)
   if ingit
   then
-    TOPLEVEL="$(git rev-parse --show-toplevel)"
+    setup_in_git
     RELBUNDLEDIR="${BUNDLE_DIR#${TOPLEVEL}/}"
-    cd "${TOPLEVEL}"
-    if [ "x$MODE" = "xinstall" ]
-    then
-      git submodule add "$giturl" "${RELBUNDLEDIR}/${BUNDLE_NAME}"
-    fi
+    git submodule add --name "${BUNDLE_NAME}" "$giturl" "${RELBUNDLEDIR}/${BUNDLE_NAME}"
   else
-    if [ "x$MODE" = "xinstall" ]
-    then
-      git clone "$giturl" "$BUNDLE_NAME"
-    fi
+    git clone "$giturl" "${RELBUNDLEDIR}/${BUNDLE_NAME}"
   fi
 fi
+
 
 if [ "x$MODE" = "xupdate" ]
 then
   cd "${BUNDLE_DIR}"
   if ingit
   then
-    TOPLEVEL="$(git rev-parse --show-toplevel)"
-    cd "${TOPLEVEL}"
-    BUNDLE_LIST="$(git submodule foreach --quiet pwd)"
+    setup_in_git
+    if [ -n "$base" ]
+    then
+      BUNDLE_LIST="$(git config -f .gitmodules submodule.${base}.path)"
+    else
+      BUNDLE_LIST="$(git submodule foreach --quiet pwd)"
+    fi
   else
     BUNDLE_LIST="$(find $(pwd) -name '.git' | sed -e 's,/\.git$,,')"
   fi
@@ -78,17 +123,53 @@ then
     cd "$bundle"
     echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     echo "Updating $(basename "$bundle")"
-    remote_url="$(git config -l | grep 'remote\.origin\.url' | sed -e 's/^.*=//')"
+    remote_url="$(git config remote.origin.url)"
     if echo "$remote_url" | grep -q "github"
     then
       repo_name="$(echo $remote_url | sed -e 's,^.*/\(.*/.*\)\.git$,\1,')"
-      master_branch="$(curl -i https://api.github.com/repos/$repo_name 2>/dev/null | \
-        grep 'master_branch' | sed -e 's/^.*: \(.*\)$/\1/' -e 's/"//g' -e 's/,$//')"
+      master_branch="$(curl -s -H "Authentication: token $(git config github.token)" \
+        https://api.github.com/repos/$repo_name 2>/dev/null | \
+        $JSHON -e 'master_branch' | sed -e 's/"//g')"
     fi
     : ${master_branch:="master"}
+
     # Checkout the $master_branch, update from the origin, then put us back into a detached HEAD state
     git checkout $master_branch
     git pull origin $master_branch
     git checkout -q --detach $master_branch
   done
 fi
+
+if [ "x$MODE" = "xremove" ]
+then
+  BUNDLE_NAME="$base"
+  cd "${BUNDLE_DIR}"
+  if ingit
+  then
+    set -x
+    setup_in_git
+    test ! -f .gitmodules && echo ".gitmodules file not found" >&2 && exit 1
+
+    RELBUNDLEDIR="$(git config -f .gitmodules submodule.${BUNDLE_NAME}.path)"
+    [ -z "$RELBUNDLEDIR" -o ! -d "$RELBUNDLEDIR" ] && \
+      echo "Could not find bundle named $BUNDLE_NAME" >&2 && exit 1
+
+    git config -f .gitmodules --remove-section submodule.$BUNDLE_NAME
+    git rm --ignore-unmatch -q -r "$RELBUNDLEDIR"
+    rm -R "$RELBUNDLEDIR" >/dev/null 2>&1
+
+    [ -d .git/modules/${RELBUNDLEDIR} ] && rm -R ".git/modules/${RELBUNDLEDIR}"
+
+  else
+    RELBUNDLEDIR="${BUNDLE_DIR#${TOPLEVEL}/}"
+    [ ! -d "${RELBUNDLEDIR}/${BUNDLE_NAME}" ] && \
+      echo "Coiuld not find bundle named $BUNDLE_NAME" >&2 && exit 1
+
+    rm -R "$RELBUNDLEDIR/$BUNDLE_NAME"
+  fi
+fi
+
+
+
+    
+
