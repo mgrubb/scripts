@@ -1,0 +1,72 @@
+#!/bin/ksh
+### Author: Michael Grubb <devel@dailyvoid.com>
+### File: Source/Projects/Acxiom/Scripts/file/trfn
+### Created: 2012-06-12 11:30
+### License: Creative Commons
+### Description: Transliterate Filenames
+
+function usage {
+  cat >&2 <<! 
+Usage: trfn [-t] [-h] [fc tc] file1..filen
+  -t Dry Run.  Prints out what new file names will be but does not rename them.
+  -h This help.
+  fc is the character or char class (as used by tr) to change
+  tc is the character list to change to (as used by tr)
+!
+  exit 1
+}
+
+function check_arg_num {
+  [ "$1" -gt 0 ] || usage
+}
+
+check_arg_num $#
+#[ "$#" -gt 0 ] || usage
+
+FC=' '
+TC='_'
+
+if [ "$1" = "-t" ]
+then
+  DRY_RUN=y
+  check_arg_num $(($# - 1))
+  shift
+elif [ "$1" = "-h" -o "$1" = "--help" ]
+then
+  usage
+fi
+
+# if first arg is not a file then assume that the next two arguments
+# are fc and tc
+if [ ! -e "$1" ]
+then
+  FC="$1"
+  TC="$2"
+  shift; shift
+fi
+
+for f in "$@"
+do
+  ext=${f##*.}
+  bf=${f%.*}
+  bf=${bf##*/}
+  dir=${f%/*}
+  [ "$dir" = "$f" ] && dir=.
+
+  tf="${dir}/$(echo $bf | tr "$FC" "$TC").${ext}"
+  # get inode numbers to skip files that are the same
+  fin=$(ls -i $f 2>/dev/null)
+  tfin=$(ls -i $tf 2>/dev/null)
+
+  if [ -n "$DRY_RUN" ]
+  then
+    print "In File: '$f'"
+    print "Out File: '${tf}'"
+    print
+  elif [ ! "$fin" = "$tfin" ]
+  then
+    mv -i "$f" "$tf"
+  fi
+done
+
+# vim:sw=2:ts=2:sts=2:et:ai:
