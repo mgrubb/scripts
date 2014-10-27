@@ -34,7 +34,7 @@ FONT_STYLE="Normal"
 #FONT="$HOME/Library/Fonts/Starjhol.TTF"
 #FONT="$HOME/Library/Fonts/Starjout.TTF"
 FONT="$HOME/Library/Fonts/Starjedi.ttf"
-HOSTNAME=$(echo $@ | sed -e "s/.*@//" -e 's/-.* //' -e "s/ .*//")
+HOSTNAME=$(echo $@ | sed -e "s/.*@//" -e 's/-.* //' -e "s/ .*//" -e 's/\..*$//')
 : ${SSH_HOSTNAME:=$HOSTNAME}
 LOOKUP_TAB="${HOME}/.ssh/host-lookup"
 if [ -f "$LOOKUP_TAB" ]
