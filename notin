@@ -10,7 +10,7 @@ use strict; use warnings;
 
 if ( @ARGV != 2 )
 {
-	die "Usage: notin <file1> <file2>\n";
+	die "Finds lines in file2 that are not in file1\nUsage: notin <file1> <file2>\n";
 }
 
 open(F1, "< $ARGV[0]") || die "Could not open $ARGV[0]: $!\n";
