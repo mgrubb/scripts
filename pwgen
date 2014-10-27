@@ -1,7 +1,14 @@
 #!/bin/sh
 # wrapper script for apg to use my custom settings
 MODE="SNCL"
-[ "$1" = "-nospecial" ] && MODE="NCL"
+LEN=10
+if [ "$1" = "-nospecial" ]
+then
+  MODE="NCL"
+elif [ -n "$1" ]
+then
+  LEN="$1"
+fi
 
-exec /usr/local/bin/apg -n 8 -m 8 -x 8 -l -M $MODE -t \
-	-E \[\]\(\)!@\#%^\*\<\>\?\/,.\`\~\{\}\;\"\'-_=+\:\\\|\&
+exec /usr/local/bin/apg -n 8 -m $LEN -x $LEN -l -M $MODE -t \
+	-E \[\]\(\)\#!@%^\*\<\>\?\/,.\`\~\{\}\;\"\'-_=+\:\\\|\&
