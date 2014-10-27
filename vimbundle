@@ -27,8 +27,8 @@ case "$1" in
       base="$2" ;;
 
    *) MODE="install"
-      location="$2"
-      base="$3";;
+      location="$1"
+      base="$2";;
 esac
 
 # source ~/.vimbundlerc for configuration overrides
@@ -84,7 +84,7 @@ then
 
   if [ "x$BUNDLE_NAME" = "x" ]
   then
-    BUNDLE_NAME=$(base_from_url "$giturl")
+    BUNDLE_NAME=$(find_base_from_url "$giturl")
   fi
 
   cd "${BUNDLE_DIR}"
@@ -129,7 +129,7 @@ then
       repo_name="$(echo $remote_url | sed -e 's,^.*/\(.*/.*\)\.git$,\1,')"
       master_branch="$(curl -s -H "Authentication: token $(git config github.token)" \
         https://api.github.com/repos/$repo_name 2>/dev/null | \
-        $JSHON -e 'master_branch' | sed -e 's/"//g')"
+        $JSHON -e 'default_branch' | sed -e 's/"//g')"
     fi
     : ${master_branch:="master"}
 
@@ -137,6 +137,7 @@ then
     git checkout $master_branch
     git pull origin $master_branch
     git checkout -q --detach $master_branch
+#    git submodule update
   done
 fi
 
@@ -154,18 +155,20 @@ then
     [ -z "$RELBUNDLEDIR" -o ! -d "$RELBUNDLEDIR" ] && \
       echo "Could not find bundle named $BUNDLE_NAME" >&2 && exit 1
 
+    git submodule deinit "$RELBUNDLEDIR"
     git config -f .gitmodules --remove-section submodule.$BUNDLE_NAME
-    git rm --ignore-unmatch -q -r "$RELBUNDLEDIR"
-    rm -R "$RELBUNDLEDIR" >/dev/null 2>&1
+    rm -Rf "$RELBUNDLEDIR" >/dev/null 2>&1
+    git rm -f -r -q --ignore-unmatch "$RELBUNDLEDIR"
 
-    [ -d .git/modules/${RELBUNDLEDIR} ] && rm -R ".git/modules/${RELBUNDLEDIR}"
+    [ -d .git/modules/${RELBUNDLEDIR} ] && rm -Rf ".git/modules/${RELBUNDLEDIR}"
+    git add .gitmodules
 
   else
     RELBUNDLEDIR="${BUNDLE_DIR#${TOPLEVEL}/}"
     [ ! -d "${RELBUNDLEDIR}/${BUNDLE_NAME}" ] && \
       echo "Coiuld not find bundle named $BUNDLE_NAME" >&2 && exit 1
 
-    rm -R "$RELBUNDLEDIR/$BUNDLE_NAME"
+    rm -Rf "$RELBUNDLEDIR/$BUNDLE_NAME"
   fi
 fi
 
