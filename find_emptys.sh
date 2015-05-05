@@ -8,9 +8,9 @@
 ### Description: This is used with find -exec to search a directory tree
 ###		for empty directories and output the list.
 
-dir=$1
+dir="$1"
 
-count=`ls -1 $dir | wc -l | sed -e 's/[ 	]*//g'`
+count=$(ls "$dir" | wc -l | awk '{print $1}')
 
 if [ "$count" = "0" ]
 then
