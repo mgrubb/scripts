@@ -1,8 +1,8 @@
 #!/bin/ksh
 
-PROG=`basename $0`
+PROG=$(basename "$0")
 
-: ${NEW_DIR:="$HOME/.new"}
+: "${NEW_DIR:="$HOME/.new"}"
 
 USAGE="
 Usage: $PROG [ -h ] [ -l ] [ -o output ] [ -t newtemp ] [ template ]
@@ -16,10 +16,10 @@ Usage: $PROG [ -h ] [ -l ] [ -o output ] [ -t newtemp ] [ template ]
 			instead of stdout
 "
 
-if [ ! -d $NEW_DIR/. ]
+if [ ! -d "$NEW_DIR/." ]
 then
-	echo "$PROG: Error: could not find new files " \
-	"directory ~/.new or NEW_DIR" >&2
+	echo "$PROG: Error: could not find new files" \
+    "directory ~/.new or NEW_DIR ($NEW_DIR)" >&2
 	exit 1
 fi
 
@@ -82,22 +82,22 @@ fi
 if [ "$LIST_OPT" = 1 ]
 then
 	echo "Templates:"
-	for t in `find $NEW_DIR -type f ! -name '.*' -print`
-	do
-		echo "	`basename $t`"
-	done
+  for t in "$NEW_DIR"/*
+  do
+    echo "	$(basename "$t")"
+  done
 	exit 0
 fi
 
 
 if [ "$NEWTEMP_OPT" = 1 ]
 then
-	if [ -f $NEW_DIR/$newtemp ]
+	if [ -f "$NEW_DIR/$newtemp" ]
 	then
 		echo "$PROG: Error: Template $newtemp already exists." >&2
 		exit 1
 	fi
-	touch $NEW_DIR/$newtemp
+	touch "$NEW_DIR/$newtemp"
 	ED=
 	{ [ -n "$VISUAL" ] && ED="$VISUAL" ;} || \
 	{ [ -n "$EDITOR" ] && ED="$EDITOR" ;} || \
@@ -107,13 +107,13 @@ then
 	{ echo "$PROG: Could not located an editor. " \
 			"New template created at $NEW_DIR/${newtemp}." >&2 ;exit 1 ;}
 
-	$ED $NEW_DIR/$newtemp
+	"$ED" "$NEW_DIR/$newtemp"
 	exit 0
 fi
 
 if [ "$TEMP_OPT" = 1 ]
 then
-	if [ ! -f "$NEW_DIR/$template" ] 
+	if [ ! -f "$NEW_DIR/$template" ]
 	then
 		echo "$PROG: Error: Template could not be found ($template)." >&2
 		exit 1
@@ -124,7 +124,7 @@ then
 	then
 		eval "exec 1>$output"
 	fi
-	cat $NEW_DIR/$template
+	cat "$NEW_DIR/$template"
 	exit 0
 fi
 
