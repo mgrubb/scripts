@@ -32,7 +32,7 @@ case "$1" in
 esac
 
 # source ~/.vimbundlerc for configuration overrides
-[ -e "$HOME/.vimbundlerc" ] && . $HOME/.vimbundlerc
+[ -e "$HOME/.vimbundlerc" ] && . "$HOME/.vimbundlerc"
 
 if [ ! -d "$BUNDLE_DIR" ]
 then
@@ -50,7 +50,7 @@ function find_git_repo {
   if echo "$url" | grep -q '^https\?://'
   then
     giturl="$url"
-  elif [ "x$(echo $url | awk -F/ '{print NF}')" = "x2" ]
+  elif [ "x$(echo "$url" | awk -F/ '{print NF}')" = "x2" ]
   then
     giturl="https://github.com/${url}.git"
   else
@@ -108,12 +108,12 @@ then
     setup_in_git
     if [ -n "$base" ]
     then
-      BUNDLE_LIST="$(git config -f .gitmodules submodule.${base}.path)"
+      BUNDLE_LIST="$(git config -f .gitmodules submodule."$base".path)"
     else
       BUNDLE_LIST="$(git submodule foreach --quiet pwd)"
     fi
   else
-    BUNDLE_LIST="$(find $(pwd) -name '.git' | sed -e 's,/\.git$,,')"
+    BUNDLE_LIST="$(find "$(pwd)" -name '.git' | sed -e 's,/\.git$,,')"
   fi
   oldIFS="$IFS"
   IFS="
@@ -121,24 +121,25 @@ then
   for bundle in $BUNDLE_LIST
   do
     cd "$bundle"
-    echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+    echo "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
     echo "Updating $(basename "$bundle")"
     remote_url="$(git config remote.origin.url)"
     if echo "$remote_url" | grep -q "github"
     then
-      repo_name="$(echo $remote_url | sed -e 's,^.*/\(.*/.*\)\.git$,\1,')"
+      repo_name="$(echo "$remote_url" | sed -e 's,^.*/\(.*/.*\)\.git$,\1,')"
       master_branch="$(curl -s -H "Authentication: token $(git config github.token)" \
-        https://api.github.com/repos/$repo_name 2>/dev/null | \
-        $JSHON -e 'default_branch' | sed -e 's/"//g')"
+        https://api.github.com/repos/"$repo_name" 2>/dev/null | \
+        "$JSHON" -e 'default_branch' | sed -e 's/"//g')"
     fi
-    : ${master_branch:="master"}
+    : "${master_branch:="master"}"
 
     # Checkout the $master_branch, update from the origin, then put us back into a detached HEAD state
-    git checkout $master_branch
-    git pull origin $master_branch
-    git checkout -q --detach $master_branch
+    git checkout "$master_branch"
+    git pull origin "$master_branch"
+    git checkout -q --detach "$master_branch"
 #    git submodule update
   done
+  IFS="$oldIFS"
 fi
 
 if [ "x$MODE" = "xremove" ]
@@ -151,28 +152,23 @@ then
     setup_in_git
     test ! -f .gitmodules && echo ".gitmodules file not found" >&2 && exit 1
 
-    RELBUNDLEDIR="$(git config -f .gitmodules submodule.${BUNDLE_NAME}.path)"
+    RELBUNDLEDIR="$(git config -f .gitmodules submodule."$BUNDLE_NAME".path)"
     [ -z "$RELBUNDLEDIR" -o ! -d "$RELBUNDLEDIR" ] && \
       echo "Could not find bundle named $BUNDLE_NAME" >&2 && exit 1
 
     git submodule deinit "$RELBUNDLEDIR"
-    git config -f .gitmodules --remove-section submodule.$BUNDLE_NAME
-    rm -Rf "$RELBUNDLEDIR" >/dev/null 2>&1
+#    git config -f .gitmodules --remove-section submodule.$BUNDLE_NAME
+#    rm -Rf "$RELBUNDLEDIR" >/dev/null 2>&1
     git rm -f -r -q --ignore-unmatch "$RELBUNDLEDIR"
 
-    [ -d .git/modules/${RELBUNDLEDIR} ] && rm -Rf ".git/modules/${RELBUNDLEDIR}"
-    git add .gitmodules
+    [ -d ".git/modules/${BUNDLE_NAME}" ] && rm -Rf ".git/modules/${BUNDLE_NAME}"
+#    git add .gitmodules
 
   else
     RELBUNDLEDIR="${BUNDLE_DIR#${TOPLEVEL}/}"
     [ ! -d "${RELBUNDLEDIR}/${BUNDLE_NAME}" ] && \
       echo "Coiuld not find bundle named $BUNDLE_NAME" >&2 && exit 1
 
-    rm -Rf "$RELBUNDLEDIR/$BUNDLE_NAME"
+    rm -Rf "${RELBUNDLEDIR:?}/$BUNDLE_NAME"
   fi
 fi
-
-
-
-    
-
